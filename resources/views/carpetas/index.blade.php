@@ -115,7 +115,7 @@
         </div>
     </div>
     <div class="card mb-3">
-        <div class="card-header">🔍 <i class="fa-solid fa-pen"></i> Buscar documentos</div>
+        <div class="card-header"><i class="fa-solid fa-search"></i> Buscar documentos</div>
         <div class="card-body">
             <form id="formBuscar">
                 <div class="row">
@@ -164,10 +164,45 @@
 <div class="modal fade" id="modalEditarCarpeta" tabindex="-1">
     <div class="modal-dialog">
         <form id="formEditarCarpeta" method="POST" class="modal-content">
-            @csrf @method('PUT')
-            <div class="modal-header"><h5 class="modal-title">Editar Carpeta</h5></div>
+            @csrf
+            @method('PUT')
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Carpeta</h5>
+            </div>
             <div class="modal-body">
-                <input type="text" name="nombre" id="nombreEditarCarpeta" class="form-control" required>
+                {{-- Nombre --}}
+                <div class="mb-2">
+                    <label>Nombre de Carpeta</label>
+                    <input type="text" name="nombre" id="nombreEditarCarpeta" class="form-control" required>
+                </div>
+
+                {{-- Empresa --}}
+                <div class="mb-2">
+                    <label>Empresa</label>
+                    <select name="id_empresa" id="empresaEditarCarpeta" class="form-control" required>
+                        <option value="">Seleccione</option>
+                        @foreach(\App\Models\Empresa::all() as $empresa)
+                            <option value="{{ $empresa->id_empresa }}">{{ $empresa->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Dirección --}}
+                <div class="mb-2">
+                    <label>Dirección</label>
+                    <select name="id_direccion" id="direccion_edit" class="form-control" required></select>
+                </div>
+                {{-- Área --}}
+                <div class="mb-2">
+                    <label>Área</label>
+                    <select name="id_area" id="areaEditarCarpeta" class="form-control" required></select>
+                </div>
+                <div class="mb-2">
+                    <label>Carpeta Padre (opcional)</label>
+                    <select name="carpeta_padre_edit" id="carpeta_padre_edit" class="form-control">
+                        <option value="">-- Ninguna --</option>
+                    </select>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -183,9 +218,35 @@
             @csrf @method('PUT')
             <div class="modal-header"><h5 class="modal-title">Editar Documento</h5></div>
             <div class="modal-body">
-                <input type="text" name="nombre" id="nombreEditarDocumento" class="form-control" required>
-                <input type="file" name="archivo" class="form-control mt-2">
+                <div class="mb-2">
+                    <label>Tipo de Archivo</label>
+                    <select name="id_tipo_documento" id="tipo_archivo_edit" class="form-control">
+                        @foreach(\App\Models\TipoArchivo::all() as $tipo)
+                            <option value="{{ $tipo->id_tipo }}">{{ $tipo->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <label>Carpeta</label>
+                    <select name="id_carpeta" id="carpeta_doc_edit" class="form-control">
+                        @foreach(\App\Models\Carpeta::all() as $carpeta)
+                            <option value="{{ $carpeta->id_carpeta }}">{{ $carpeta->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <label>Nombre</label>
+                    <input type="text" name="nombre" id="nombreEditarDocumento" class="form-control" required>
+                </div>
+
+                <div class="mb-2">
+                    <label>Archivo (opcional)</label>
+                    <input type="file" name="archivo" class="form-control">
+                </div>
             </div>
+
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="submit" class="btn btn-warning">Actualizar</button>
@@ -233,7 +294,7 @@ $(document).ready(function () {
         $('#carpeta_padre').empty().append('<option value="">-- Ninguna --</option>');
         $('#carpeta_doc').empty();
         if (id) {
-            $.get('{{ url("api/carpetas/") }}/' + id, function (data) {
+            $.get('{{ url("api/carpeta/") }}/' + id, function (data) {
                 data.forEach(function (item) {
                     $('#carpeta_padre').append('<option value="' + item.id_carpeta + '">' + item.nombre + '</option>');
                     $('#carpeta_doc').append('<option value="' + item.id_carpeta + '">' + item.nombre + '</option>');
@@ -241,13 +302,23 @@ $(document).ready(function () {
             });
         }
     });
-    $('#carpetas-tree').on('click', '.btn-edit', function (e) {
-        e.stopPropagation();
-        let id = $(this).data('id');
-        let type = $(this).data('type');
-        abrirModalEdicion(type, id);
-    });
+    $(document).on('click', '.btn-editar-carpeta', function () {
+        // Limpiar selects
+        $('#nombreEditarCarpeta').empty();
+        // $('#empresaEditarCarpeta').empty().append('<option value="">Seleccione</option>');
+        $('#direccion_edit').empty().append('<option value="">Seleccione</option>');
+        $('#areaEditarCarpeta').empty().append('<option value="">Seleccione</option>');
+        $('#carpeta_padre_edit').empty().append('<option value="">-- Ninguna --</option>');
 
+        $('#formEditarCarpeta').attr('action', '{{ url("carpetas") }}' + '/' + $(this).data('id'));
+        $('#nombreEditarCarpeta').val($(this).data('name'));
+        $('#empresaEditarCarpeta').val($(this).data('id_empresa'));
+        getDireccion($(this).data('id_empresa'), $(this).data('id_direccion'));
+        getAreas($(this).data('id_direccion'), $(this).data('id_area'));
+        getCarpeta($(this).data('id_area'),$(this).data('id_padre'));
+        $('#modalEditarCarpeta').modal('show');
+
+    });
     function cargarTree(filtros = {}) {
         $('#carpetas-tree').jstree("destroy").empty().jstree({
             'core': {
@@ -290,7 +361,7 @@ $(document).ready(function () {
         let id = $(this).val();
         $('#carpeta_doc_arch').empty();
         if (id) {
-            $.get('{{ url("api/carpetas/") }}/' + id, function (data) {
+            $.get('{{ url("api/carpeta/") }}/' + id, function (data) {
                 data.forEach(function (item) {
                     $('#carpeta_doc_arch').append('<option value="' + item.id_carpeta + '">' + item.nombre + '</option>');
                 });
@@ -299,7 +370,6 @@ $(document).ready(function () {
     });
     // Carga inicial sin filtros
     cargarTree();
-
     // Al enviar el formulario
     $('#formBuscar').submit(function(e){
         e.preventDefault();
@@ -312,42 +382,157 @@ $(document).ready(function () {
         });
         cargarTree(params);
     });
-    // Editar Carpeta
-    $(document).on('click', '.btn-editar-carpeta', function (e) {
-        e.stopPropagation(); // evita que se abra/cierre el nodo
-        let id = $(this).data('id');
-        let nombre = $(this).data('nombre');
-        $('#nombreEditarCarpeta').val(nombre);
-        $('#formEditarCarpeta').attr('action', '{{ url("carpetas") }}/' + id);
-        $('#modalEditarCarpeta').modal('show');
-    });
-
+    // funciones de consulta edicion
+    function getDireccion(id_empresa, id_old,tipo){
+       let id = id_empresa
+        $('#direccion_edit').empty();
+        if (id) {
+            $.get('{{ url("api/direcciones/") }}/' + id, function (data) {
+                $('#direccion_edit').append('<option value="">Seleccione</option>');
+                data.forEach(function (item) {
+                    $('#direccion_edit').append('<option value="' + item.id_direccion + '"' + (item.id_direccion == id_old ? ' selected' : item.id_direccion) + '>' + item.nombre + '</option>');
+                });
+            });
+        }
+    }
+    function getAreas(id_area, id_old){
+       let id = id_area
+        $('#id_area').empty();
+        if (id) {
+            $.get('{{ url("api/areas/") }}/' + id, function (data) {
+                $('#areaEditarCarpeta').append('<option value="">Seleccione</option>');
+                data.forEach(function (item) {
+                    $('#areaEditarCarpeta').append('<option value="' + item.id_area + '"' + (item.id_area == id_old ? ' selected' : '') + '>' + item.nombre + '</option>');
+                });
+            });
+        }
+    }
+    function getCarpeta(id_area, id_old){
+        let id = id_area;
+        $('#carpeta_padre').empty().append('<option value="">-- Ninguna --</option>');
+        $('#carpeta_doc').empty();
+        if (id) {
+            $.get('{{ url("api/carpeta/") }}/' + id, function (data) {
+                data.forEach(function (item) {
+                    $('#carpeta_padre_edit').append('<option value="' + item.id_area + '"' + (item.id_area == id_old ? ' selected' : '') + '>' + item.nombre + '</option>');
+                    // $('#carpeta_doc').append('<option value="' + item.id_carpeta + '">' + item.nombre + '</option>');
+                });
+            });
+        }
+    }
     // Editar Documento
     $(document).on('click', '.btn-editar-documento', function () {
-        let id = $(this).data('id');
-        let nombre = $(this).data('nombre');
+       let id      = $(this).data('id');
+        let nombre  = $(this).data('nombre');
+        let tipo    = $(this).data('id_tipo_documento');
+        let carpeta = $(this).data('id_carpeta');
+
+        $('#formEditarDocumento').attr('action', '{{ url("documentos/") }}/' + id);
         $('#nombreEditarDocumento').val(nombre);
-        $('#formEditarDocumento').attr('action', '{{ url("documentos") }}/' + id);
+        $('#tipo_archivo_edit').val(tipo);
+        $('#carpeta_doc_edit').val(carpeta);
+        $('#modalEditarDocumento').modal('show');
     });
-});
-function abrirModalEdicion(type, id) {
-    fetch(`/${type}s/${id}/edit`)
-        .then(res => res.json())
-        .then(data => {
-            if (type === 'carpeta') {
-                let form = document.getElementById('formEditarCarpeta');
-                form.action = `/carpetas/${id}`;
-                document.getElementById('nombre_carpeta_edit').value = data.nombre;
-                // Aquí llenas los select de empresa, dirección, área igual que antes
-                $('#modalEditarCarpeta').modal('show');
-            } else {
-                let form = document.getElementById('formEditarDocumento');
-                form.action = `/documentos/${id}`;
-                document.getElementById('nombre_documento_edit').value = data.nombre;
-                document.getElementById('tipo_archivo_edit').value = data.id_tipo_documento;
-                $('#modalEditarDocumento').modal('show');
+    // Eliminamos carpeta o documento
+    // $(document).on('click', '.btn-delete', function () {
+    //     let id = $(this).data('id');
+    //     let tipo = $(this).data('type');
+    //     let nombre = $(this).data('name');
+    //     Swal.fire({
+    //         title: `¿Eliminar ${tipo}?`,
+    //         text: `Se eliminará "${nombre}" y esta acción no se puede deshacer.`,
+    //         icon: 'warning',
+    //         showCancelButton: true,
+    //         confirmButtonColor: '#d33',
+    //         cancelButtonColor: '#6c757d',
+    //         confirmButtonText: 'Sí, eliminar',
+    //         cancelButtonText: 'Cancelar'
+    //     }).then((result) => {
+    //         if (result.isConfirmed) {
+    //             let url = '';
+    //             if (tipo === 'carpeta') {
+    //                 url = '{{ url("carpetas/") }}' + '/' +id;
+    //             } else if (tipo === 'documento') {
+    //                 url = '{{ url("documentos/") }}' +'/'+ id;
+    //             }
+
+    //             $.ajax({
+    //                 url: url,
+    //                 type: 'DELETE',
+    //                 data: {
+    //                     _token: '{{ csrf_token() }}'
+    //                 },
+    //                 success: function (response) {
+    //                     Swal.fire({
+    //                         icon: 'success',
+    //                         title: 'Eliminado',
+    //                         text: response.success || `${tipo} eliminado correctamente`,
+    //                         timer: 2000,
+    //                         showConfirmButton: false
+    //                     });
+    //                     cargarTree(); // Recargar árbol
+    //                 },
+    //                 error: function (xhr) {
+    //                     Swal.fire({
+    //                         icon: 'error',
+    //                         title: 'Error',
+    //                         text: 'Ocurrió un error al eliminar. Revisa la consola.'
+    //                     });
+    //                     console.error(xhr.responseText);
+    //                 }
+    //             });
+    //         }
+    //     });
+    // });
+        $(document).on('click', '.btn-delete', function () {
+        let id = $(this).data('id');
+        let tipo = $(this).data('type'); // "carpeta" o "documento"
+        let nombre = $(this).data('name');
+
+        // Construir URL correcta según rutas en web.php
+        let url = (tipo === 'carpeta')
+            ? '{{ url("carpetas_baja") }}/' + id
+            : '{{ url("documentos_baja") }}/' + id;
+
+        Swal.fire({
+            title: `¿Eliminar ${tipo}?`,
+            text: `Se eliminará "${nombre}" y esta acción no se puede deshacer.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: url,
+                    type: 'DELETE',
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function (response) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Eliminado',
+                            text: response.success || `${tipo} eliminado correctamente`,
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        cargarTree();
+                    },
+                    error: function (xhr) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ocurrió un error al eliminar. Revisa la consola.'
+                        });
+                        console.error(xhr.responseText);
+                    }
+                });
             }
         });
-}
+    });
+});
 </script>
 @endsection

@@ -12,7 +12,7 @@ class Area extends Model
     protected $primarKey = 'id_area';
     protected $fillable = ['id_empresa'];
 
-    public function direccion(){
+    public function direccion() {
         return $this->belongsTo(Direccion::class, 'id_direccion', 'id_direccion');
     }
     public function carpetas(){

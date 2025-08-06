@@ -71,140 +71,135 @@ class CarpetaController extends Controller
         $request->validate([
             'id_area' => 'required|exists:areas,id_area',
             'nombre' => 'required|string|max:255',
-            'id_padre' => 'nullable|exists:carpetas,id_carpeta'
+            'carpeta_padre_edit' => 'nullable|exists:carpetas,id_carpeta'
         ]);
 
         $carpeta = Carpeta::findOrFail($id);
 
-        $nombreActual = str_replace(' ', '_', $carpeta->nombre);
-        $nuevoNombre  = str_replace(' ', '_', $request->nombre);
+        $padreActualId = $carpeta->id_padre;
+        $padreNuevoId  = $request->carpeta_padre_edit;
+        $nombreActual  = str_replace(' ', '_', $carpeta->nombre);
+        $nuevoNombre   = str_replace(' ', '_', $request->nombre);
 
-        // Si cambió el nombre, renombrar físicamente
-        if ($nombreActual !== $nuevoNombre) {
-            // Ruta actual
-            if ($carpeta->id_padre) {
-                $padre = Carpeta::find($carpeta->id_padre);
-                $rutaActual = storage_path('app/public/' . str_replace(' ', '_', $padre->nombre) . '/' . $nombreActual);
-                $rutaNueva  = storage_path('app/public/' . str_replace(' ', '_', $padre->nombre) . '/' . $nuevoNombre);
-            } else {
-                $rutaActual = storage_path('app/public/' . $nombreActual);
-                $rutaNueva  = storage_path('app/public/' . $nuevoNombre);
+        // Función para construir ruta física
+        $rutaCarpeta = function ($padreId, $nombre) {
+            $rutaBase = storage_path('app/public/');
+            if ($padreId) {
+                $padre = Carpeta::find($padreId);
+                if (!$padre) return null;
+                return $rutaBase . str_replace(' ', '_', $padre->nombre) . '/' . $nombre;
             }
+            return $rutaBase . $nombre;
+        };
 
-            // Verificar existencia
-            if (File::exists($rutaActual) && !File::exists($rutaNueva)) {
+        // Si cambió el padre o el nombre
+        if ($padreActualId !== $padreNuevoId || $nombreActual !== $nuevoNombre) {
+            $rutaActual = $rutaCarpeta($padreActualId, $nombreActual);
+            $rutaNueva  = $rutaCarpeta($padreNuevoId, $nuevoNombre);
+
+            if ($rutaActual && $rutaNueva && File::exists($rutaActual) && !File::exists($rutaNueva)) {
                 File::move($rutaActual, $rutaNueva);
             } else {
-                return back()->with('error', 'No se pudo renombrar la carpeta física.');
+                return back()->with('error', 'No se pudo renombrar/mover la carpeta física.');
             }
         }
 
         // Guardar cambios en BD
         $carpeta->update([
             'id_area' => $request->id_area,
-            'id_padre' => $request->id_padre,
+            'id_padre' => $padreNuevoId,
             'nombre' => $request->nombre
         ]);
 
         return back()->with('success', 'Carpeta actualizada correctamente.');
     }
 
-    public function destroy($id){
-        $carpeta = Carpeta::findOrFail($id);
-        $carpeta->delete();
-        return back()->with('success', 'Carpeta eliminada.');
-    }
     // Para jsTree: retorna todas las carpetas y subcarpetas
     public function treeData(Request $request){
-        // $data = Carpeta::with('subcarpetas')->whereNull('id_padre')->get();
-        // return response()->json($this->formatTree($data));
-        $query = Carpeta::with(['subcarpetas', 'documentos']);
-        // filtrar por documentos
+        $query = Carpeta::query()
+        ->select(
+            'carpetas.*',
+            'empresas.nombre as empresa_nombre',
+            'empresas.id_empresa as id_empresa',
+            'direcciones.nombre as direccion_nombre',
+            'direcciones.id_direccion as id_direccion',
+            'areas.nombre as area_nombre'
+        )
+        ->leftJoin('areas', 'areas.id_area', '=', 'carpetas.id_area')
+        ->leftJoin('direcciones', 'direcciones.id_direccion', '=', 'areas.id_direccion')
+        ->leftJoin('empresas', 'empresas.id_empresa', '=', 'direcciones.id_empresa')
+        ->with([
+            'documentos',
+            'subcarpetas' => function ($q) {
+                $q->select(
+                    'carpetas.*',
+                    'empresas.nombre as empresa_nombre',
+                    'empresas.id_empresa as id_empresa',
+                    'direcciones.nombre as direccion_nombre',
+                    'direcciones.id_direccion as id_direccion',
+                    'areas.nombre as area_nombre'
+                )
+                ->leftJoin('areas', 'areas.id_area', '=', 'carpetas.id_area')
+                ->leftJoin('direcciones', 'direcciones.id_direccion', '=', 'areas.id_direccion')
+                ->leftJoin('empresas', 'empresas.id_empresa', '=', 'direcciones.id_empresa')
+                ->with(['documentos', 'subcarpetas']);
+            }
+        ]);
+        // Filtro por nombre de documento
         if ($request->filled('nombre')) {
             $query->whereHas('documentos', function($q) use ($request){
-                $q->where('nombre', 'like', '%'.$requets->nombre.'%');
+                $q->where('nombre', 'like', '%'.$request->nombre.'%');
             });
         }
-        // Filtro de empresa
+        // Filtro por empresa
         if ($request->filled('empresa')) {
-            $query->whereHas('area.direccion.empresa', function ($q) use ($request) {
-                $q->where('empresas.id_empresa', $request->empresa);
+            $query->whereHas('empresa', function ($q) use ($request) {
+                $q->where('id_empresa', $request->empresa);
             });
         }
+
         // Filtro por dirección
         if ($request->filled('direccion')) {
-            $query->whereHas('area.direccion', function ($q) use ($request) {
-                $q->where('direcciones.id_direccion', $request->direccion);
+            $query->whereHas('direccion', function ($q) use ($request) {
+                $q->where('id_direccion', $request->direccion);
             });
         }
+
         // Filtro por área
         if ($request->filled('area')) {
-            $query->where('areas.id_area', $request->area);
+            $query->whereHas('area', function ($q) use ($request) {
+                $q->where('id_area', $request->area);
+            });
         }
+
+        // Solo carpetas raíz
         $data = $query->whereNull('id_padre')->get();
         return response()->json($this->formatTree($data));
     }
 
-    // private function formatTree($carpetas){
-    //     $result = [];
-
-    //     foreach ($carpetas as $carpeta) {
-    //         $buttonsCarpeta = '
-    //             <span class="tree-actions">
-    //                 <a href="#" class="icon-action edit btn-editar-carpeta" data-id="' . $carpeta->id_carpeta . '" data-nombre="' . e($carpeta->nombre) . '" title="Editar"><i class="fa-solid fa-pen"></i></a>
-    //                 <form method="POST" action="' . url("carpetas/{$carpeta->id_carpeta}") . '" style="display:inline">
-    //                     ' . csrf_field() . method_field('DELETE') . '
-    //                     <button type="submit" class="icon-action" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
-    //                 </form>
-    //             </span>
-    //         ';
-
-    //         $carpetaNode = [
-    //             'id' => 'carpeta_' . $carpeta->id_carpeta,
-    //             'text' => '<span class="tree-label">' . e($carpeta->nombre) . '</span>' . $buttonsCarpeta,
-    //             'children' => []
-    //         ];
-
-    //         foreach ($carpeta->documentos as $doc) {
-    //             $buttonsDoc = '
-    //                 <span class="tree-actions">
-    //                     <a href="#" class="icon-action edit btn-editar-documento" data-id="' . $doc->id_documento . '" data-nombre="' . e($doc->nombre) . '" title="Editar"><i class="fa-solid fa-pen"></i></a>
-    //                     <form method="POST" action="' . url("documentos/{$doc->id_documento}") . '" style="display:inline">
-    //                         ' . csrf_field() . method_field('DELETE') . '
-    //                         <button type="submit" class="icon-action delete" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
-    //                     </form>
-    //                 </span>
-    //             ';
-
-    //             $carpetaNode['children'][] = [
-    //                 'id' => 'doc_' . $doc->id_documento,
-    //                 'text' => '<span class="tree-label">📄 ' . e($doc->nombre) . '</span>' . $buttonsDoc
-    //             ];
-    //         }
-
-    //         if ($carpeta->subcarpetas->count() > 0) {
-    //             $carpetaNode['children'] = array_merge(
-    //                 $carpetaNode['children'],
-    //                 $this->formatTree($carpeta->subcarpetas)
-    //             );
-    //         }
-
-    //         $result[] = $carpetaNode;
-    //     }
-
-    //     return $result;
-    // }
     private function formatTree($carpetas){
         $result = [];
+
         foreach ($carpetas as $carpeta) {
             $carpetaNode = [
                 'id' => 'carpeta_' . $carpeta->id_carpeta,
-                'text' => '📁 ' . e($carpeta->nombre) .
-                    ' <i class="jstree-themeicon fa fa-pen btn-edit"
-                        data-type="carpeta" data-id="' . $carpeta->id_carpeta . '"
+                'text' => e($carpeta->nombre) .
+                    ' <i class="jstree-themeicon fa fa-pen btn-edit btn-editar-carpeta"
+                        data-type="carpeta"
+                        data-name="'.$carpeta->nombre.'"
+                        data-id="' . $carpeta->id_carpeta . '"
+                        data-id_padre="'.$carpeta->id_padre.'"
+                        data-id_empresa="' . $carpeta->id_empresa . '"
+                        data-id_direccion="' . $carpeta->id_direccion . '"
+                        data-id_area="' . $carpeta->id_area . '"
                         title="Editar"></i>
                     <i class="jstree-themeicon fa fa-trash btn-delete"
-                        data-type="carpeta" data-id="' . $carpeta->id_carpeta . '"
+                        data-type="carpeta"
+                        data-name="'.$carpeta->nombre.'"
+                        data-id="' . $carpeta->id_carpeta . '"
+                        data-id_empresa="' . $carpeta->id_empresa . '"
+                        data-id_direccion="' . $carpeta->id_direccion . '"
+                        data-id_area="' . $carpeta->id_area . '"
                         title="Eliminar"></i>',
                 'children' => []
             ];
@@ -214,15 +209,19 @@ class CarpetaController extends Controller
                 $carpetaNode['children'][] = [
                     'id' => 'doc_' . $doc->id_documento,
                     'text' => '📄 ' . e($doc->nombre) .
-                        ' <i class="jstree-themeicon fa fa-pen btn-edit"
-                            data-type="documento" data-id="' . $doc->id_documento . '"
+                        ' <i class="jstree-themeicon fa fa-pen btn-edit btn-editar-documento"
+                            data-type="documento"
+                            data-id="' . $doc->id_documento . '"
+                            data-name="' . e($doc->nombre) . '"
+                            data-id_carpeta="' . $carpeta->id_carpeta . '"
+                            data-tipo="' . $doc->id_tipo_documento . '"
                             title="Editar"></i>
                         <i class="jstree-themeicon fa fa-trash btn-delete"
-                            data-type="documento" data-id="' . $doc->id_documento . '"
+                            data-type="documento"
+                            data-id="' . $doc->id_documento . '"
                             title="Eliminar"></i>'
                 ];
             }
-
             // Subcarpetas
             if ($carpeta->subcarpetas->count() > 0) {
                 $carpetaNode['children'] = array_merge(
@@ -235,5 +234,37 @@ class CarpetaController extends Controller
         }
         return $result;
     }
+    private function buildPath($carpeta){
+        $ruta = [];
+        while ($carpeta) {
+            array_unshift($ruta, str_replace(' ', '_', $carpeta->nombre));
+            $carpeta = $carpeta->padre; // relación belongsTo
+        }
+        return implode('/', $ruta);
+    }
+    public function destroyCarpeta(request $request){
+        $id = $request->id;
+        $carpeta = Carpeta::with(['documentos', 'subcarpetas'])->findOrFail($id);
+        // Eliminar documentos dentro de la carpeta
+        foreach ($carpeta->documentos as $documento) {
+            $rutaDoc = storage_path('app/public/' . $this->buildPath($carpeta) . '/' . $documento->archivo);
+            if (File::exists($rutaDoc)) {
+                File::delete($rutaDoc);
+            }
+            $documento->delete();
+        }
+        // Eliminar subcarpetas recursivamente
+        foreach ($carpeta->subcarpetas as $subcarpeta) {
+            $this->destroyCarpeta($subcarpeta->id_carpeta);
+        }
+        // Eliminar carpeta física
+        $rutaCarpeta = storage_path('app/public/' . $this->buildPath($carpeta));
+        if (File::exists($rutaCarpeta)) {
+            File::deleteDirectory($rutaCarpeta);
+        }
+        // Eliminar carpeta de la BD
+        $carpeta->delete();
 
+        return back()->with('success', 'Carpeta eliminada correctamente.');
+    }
 }
