@@ -25,21 +25,3 @@ Route::get('/api/carpeta/{areaId}', [ApiController::class, 'carpetas']);
 // Árbol dinámico
 Route::get('/api/tree', [CarpetaController::class, 'treeData']);
 
-/**
- * Inicia empresas
-*/
-// Listar empresas
-Route::get('empresas', [EmpresaController::class, 'index'])->name('empresas.index');
-
-// Guardar nueva empresa
-Route::post('empresas', [EmpresaController::class, 'store'])->name('empresas.store');
-
-// Actualizar empresa
-Route::put('empresas/{id}', [EmpresaController::class, 'update'])->name('empresas.update');
-
-// Eliminar empresa
-Route::delete('empresas/{id}', [EmpresaController::class, 'destroy'])->name('empresas.destroy');
-/**
- * Termina empresas
- */
-

@@ -59,7 +59,6 @@
                 </div>
             </div>
         </div>
-
         {{-- Formulario Subir Documento --}}
         <div class="col-md-6">
             <div class="card mb-4">
@@ -107,7 +106,6 @@
                             <label>Archivo</label>
                             <input type="file" name="archivo" class="form-control" required>
                         </div>
-
                         <button type="submit" class="btn btn-success">Subir Documento</button>
                     </form>
                 </div>
@@ -186,7 +184,6 @@
                         @endforeach
                     </select>
                 </div>
-
                 {{-- Dirección --}}
                 <div class="mb-2">
                     <label>Dirección</label>
@@ -305,7 +302,6 @@ $(document).ready(function () {
     $(document).on('click', '.btn-editar-carpeta', function () {
         // Limpiar selects
         $('#nombreEditarCarpeta').empty();
-        // $('#empresaEditarCarpeta').empty().append('<option value="">Seleccione</option>');
         $('#direccion_edit').empty().append('<option value="">Seleccione</option>');
         $('#areaEditarCarpeta').empty().append('<option value="">Seleccione</option>');
         $('#carpeta_padre_edit').empty().append('<option value="">-- Ninguna --</option>');
@@ -415,7 +411,6 @@ $(document).ready(function () {
             $.get('{{ url("api/carpeta/") }}/' + id, function (data) {
                 data.forEach(function (item) {
                     $('#carpeta_padre_edit').append('<option value="' + item.id_area + '"' + (item.id_area == id_old ? ' selected' : '') + '>' + item.nombre + '</option>');
-                    // $('#carpeta_doc').append('<option value="' + item.id_carpeta + '">' + item.nombre + '</option>');
                 });
             });
         }
@@ -434,62 +429,12 @@ $(document).ready(function () {
         $('#modalEditarDocumento').modal('show');
     });
     // Eliminamos carpeta o documento
-    // $(document).on('click', '.btn-delete', function () {
-    //     let id = $(this).data('id');
-    //     let tipo = $(this).data('type');
-    //     let nombre = $(this).data('name');
-    //     Swal.fire({
-    //         title: `¿Eliminar ${tipo}?`,
-    //         text: `Se eliminará "${nombre}" y esta acción no se puede deshacer.`,
-    //         icon: 'warning',
-    //         showCancelButton: true,
-    //         confirmButtonColor: '#d33',
-    //         cancelButtonColor: '#6c757d',
-    //         confirmButtonText: 'Sí, eliminar',
-    //         cancelButtonText: 'Cancelar'
-    //     }).then((result) => {
-    //         if (result.isConfirmed) {
-    //             let url = '';
-    //             if (tipo === 'carpeta') {
-    //                 url = '{{ url("carpetas/") }}' + '/' +id;
-    //             } else if (tipo === 'documento') {
-    //                 url = '{{ url("documentos/") }}' +'/'+ id;
-    //             }
-
-    //             $.ajax({
-    //                 url: url,
-    //                 type: 'DELETE',
-    //                 data: {
-    //                     _token: '{{ csrf_token() }}'
-    //                 },
-    //                 success: function (response) {
-    //                     Swal.fire({
-    //                         icon: 'success',
-    //                         title: 'Eliminado',
-    //                         text: response.success || `${tipo} eliminado correctamente`,
-    //                         timer: 2000,
-    //                         showConfirmButton: false
-    //                     });
-    //                     cargarTree(); // Recargar árbol
-    //                 },
-    //                 error: function (xhr) {
-    //                     Swal.fire({
-    //                         icon: 'error',
-    //                         title: 'Error',
-    //                         text: 'Ocurrió un error al eliminar. Revisa la consola.'
-    //                     });
-    //                     console.error(xhr.responseText);
-    //                 }
-    //             });
-    //         }
-    //     });
-    // });
         $(document).on('click', '.btn-delete', function () {
         let id = $(this).data('id');
         let tipo = $(this).data('type'); // "carpeta" o "documento"
         let nombre = $(this).data('name');
 
-        // Construir URL correcta según rutas en web.php
+        // Construir URL correcta con trernario
         let url = (tipo === 'carpeta')
             ? '{{ url("carpetas_baja") }}/' + id
             : '{{ url("documentos_baja") }}/' + id;

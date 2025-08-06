@@ -29,7 +29,7 @@ class Carpeta extends Model
         return $this->hasOneThrough(
             Direccion::class,
             Area::class,
-            'id_area',        // FK en area → relaciona con direccion
+            'id_area',        // FK en area - relaciona con direccion
             'id_direccion',   // FK en direccion
             'id_area',        // FK en carpeta
             'id_direccion'    // PK en direccion

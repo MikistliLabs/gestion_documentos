@@ -19,8 +19,6 @@ class DocumentoController extends Controller
         // Recuperamos el nombre de la carpeta
         $carpeta = Carpeta::findOrFail($request->id_carpeta);
         $nombreCarpeta = str_replace(' ', '_', $carpeta->nombre);
-        // $path = $request->file('archivo')->store('documentos', 'public');
-        //
         $nombreArchivo = str_replace(' ', '_', $request->nombre) . '.' . $request->file('archivo')->getClientOriginalExtension();
         $path = $request->file('archivo')->storeAs('public/' . $nombreCarpeta, $nombreArchivo, 'public');
         $rutaArchivo = storage_path($path);
