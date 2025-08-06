@@ -1,0 +1,20 @@
+/* arbol.css */
+#carpetas-tree .tree-actions {
+    float: right;
+    display: flex;
+    gap: 4px;
+}
+
+#carpetas-tree .btn {
+    padding: 2px 6px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+#carpetas-tree .tree-label {
+    display: inline-block;
+    max-width: calc(100% - 60px); /* espacio para botones */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
