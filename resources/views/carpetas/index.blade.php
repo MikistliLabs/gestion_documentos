@@ -434,6 +434,17 @@ $(document).ready(function () {
         let tipo = $(this).data('type'); // "carpeta" o "documento"
         let nombre = $(this).data('name');
 
+        // --- SOLUCIÓN: Validar que el ID exista antes de continuar ---
+        if (!id || !tipo) {
+            console.error('Intento de eliminación con ID o tipo inválido.');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo obtener la información para eliminar.'
+            });
+            return; // Detiene la ejecución si no hay ID
+        }
+
         // Construir URL correcta con trernario
         let url = (tipo === 'carpeta')
             ? '{{ url("carpetas_baja") }}/' + id
@@ -452,9 +463,10 @@ $(document).ready(function () {
             if (result.isConfirmed) {
                 $.ajax({
                     url: url,
-                    type: 'DELETE',
+                    type: 'POST', // Se cambia a POST por compatibilidad
                     data: {
-                        _token: '{{ csrf_token() }}'
+                        _token: '{{ csrf_token() }}',
+                        _method: 'DELETE' // Laravel interpretará esto como una petición DELETE
                     },
                     success: function (response) {
                         Swal.fire({
