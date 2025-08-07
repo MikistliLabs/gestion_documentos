@@ -463,10 +463,10 @@ $(document).ready(function () {
             if (result.isConfirmed) {
                 $.ajax({
                     url: url,
-                    type: 'POST', // Se cambia a POST por compatibilidad
+                    type: 'POST',
                     data: {
                         _token: '{{ csrf_token() }}',
-                        _method: 'DELETE' // Laravel interpretará esto como una petición DELETE
+                        _method: 'DELETE' 
                     },
                     success: function (response) {
                         Swal.fire({
